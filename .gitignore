@@ -1,2 +1,5 @@
 amplify.yml
-frontend/config.js
+frontend/config.
+.venv/
+__pycache__/
+*.pyc
