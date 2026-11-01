@@ -1,4 +1,4 @@
-frontend/config.
+frontend/config.js
 .venv/
 __pycache__/
 *.pyc
