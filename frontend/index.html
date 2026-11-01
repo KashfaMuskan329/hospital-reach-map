@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hospital Reach Map: how far is help?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="config.js"></script>
+<style>
+:root{--paper:#fbf6ea;--ink:#1b1f3b;--red:#e63946;--teal:#2bb673;--amber:#ffd166;--orange:#ff8c5a;--muted:#6b6f8a;
+--serif:"Fraunces",Georgia,"Times New Roman",serif;--sans:"DM Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;--mono:"DM Mono",ui-monospace,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans)}
+#map{position:absolute;inset:0}
+.card{background:var(--paper);border:2px solid var(--ink);border-radius:14px;box-shadow:5px 5px 0 var(--ink)}
+
+/* brand / headline */
+#brand{position:absolute;top:16px;left:16px;z-index:4;max-width:min(430px,calc(100% - 32px));padding:16px 18px 14px}
+.kicker{font:500 11px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--red)}
+h1{font:800 34px/1.02 var(--serif);margin:6px 0 8px;letter-spacing:-.02em}
+h1 em{color:var(--red);font-style:italic}
+#story{margin:0;font-size:14px;line-height:1.5}
+#story b{background:linear-gradient(transparent 58%,rgba(233,196,106,.7) 58%)}
+.tags{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.tag{font:500 10.5px var(--mono);padding:3px 8px;border:1.5px solid var(--ink);border-radius:99px;background:#fff}
+.tag.warn{background:#fff1c9}.tag.demo{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* layer chips */
+#chips{position:absolute;top:16px;right:56px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:min(520px,calc(100% - 480px))}
+.chip{font:500 12.5px var(--sans);padding:8px 12px;border:2px solid var(--ink);border-radius:99px;background:var(--paper);color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:7px;box-shadow:3px 3px 0 var(--ink);transition:transform .08s,box-shadow .08s}
+.chip:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.chip[aria-pressed="false"]{background:#e8e1cf;color:var(--muted);box-shadow:none;transform:translate(2px,2px)}
+.chip i{width:11px;height:11px;border-radius:50%;border:2px solid var(--ink);display:inline-block}
+
+/* dock */
+#dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:4;width:min(720px,calc(100% - 28px));padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center}
+.seg{display:flex;border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:#fff}
+.seg button{font:700 14px var(--sans);padding:10px 14px;border:0;background:transparent;color:var(--ink);cursor:pointer;border-right:2px solid var(--ink)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.meter{display:flex;align-items:baseline;gap:10px;min-width:0}
+#bigpct{font:800 44px/1 var(--serif);letter-spacing:-.03em}
+#bigtxt{font-size:12.5px;line-height:1.35;color:var(--muted)}
+#goFar{font:700 12.5px var(--sans);padding:10px 12px;border-radius:12px;border:2px solid var(--red);background:var(--red);color:#fff;cursor:pointer;white-space:nowrap}
+#goFar:hover{filter:brightness(.95)}
+
+/* sticker (click result) */
+#sticker{position:absolute;left:16px;bottom:122px;z-index:4;width:min(340px,calc(100% - 32px));padding:14px 16px;display:none;transform:rotate(-1.2deg)}
+#sticker .v{font:800 20px/1.1 var(--serif);margin-bottom:6px}
+#sticker .row{font-size:12.5px;line-height:1.45;margin-top:7px;display:flex;gap:8px}
+#sticker .row i{flex:none;width:12px;height:12px;border-radius:50%;margin-top:3px;border:2px solid var(--ink)}
+#sticker .sim{font:500 10.5px var(--mono);color:var(--muted);margin-top:9px}
+#sticker .x{position:absolute;top:6px;right:10px;border:0;background:none;font-size:20px;cursor:pointer;color:var(--muted)}
+
+#labels{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;white-space:nowrap;font:500 11px/16px var(--sans);color:#2b2f55;letter-spacing:.01em;
+ text-shadow:-1.5px 0 #fff,1.5px 0 #fff,0 -1.5px #fff,0 1.5px #fff,0 0 4px #fff;display:none}
+.lbl.t0{font:700 14px/16px var(--serif);letter-spacing:.04em;text-transform:uppercase;color:#1b1f3b}
+.lbl.t1{font:700 11.5px/16px var(--sans);color:#1b1f3b}
+#sticker .loc{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--red);margin-bottom:4px}
+.where{margin:-2px 0 8px}
+.where b{font:700 14px var(--sans);display:block}
+.where span{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+#locator{position:absolute;right:16px;top:132px;z-index:4;width:178px;padding:6px}
+#locmap{height:104px;border-radius:8px;overflow:hidden;border:1.5px solid var(--ink)}
+#locator span{display:block;font:500 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;text-align:center;margin:6px 0 1px}
+.dotpin{width:14px;height:14px;border-radius:50%;background:var(--red);border:3px solid #fff;box-shadow:0 0 0 3px rgba(230,57,70,.35)}
+#play{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:4;font:700 13px var(--sans);padding:10px 16px;border-radius:99px;border:2px solid var(--ink);background:var(--amber);color:var(--ink);cursor:pointer;box-shadow:3px 3px 0 var(--ink)}
+#play:active{transform:translate(calc(-50% + 2px),2px);box-shadow:1px 1px 0 var(--ink)}
+#caption{display:none;position:absolute;top:66px;left:50%;transform:translateX(-50%);z-index:4;max-width:min(560px,calc(100% - 32px));padding:12px 16px;font:600 15px/1.4 var(--serif);text-align:center}
+@media(max-width:1100px){#locator,#play{display:none}}
+#legend{position:absolute;right:16px;bottom:150px;z-index:4;padding:11px 13px;font-size:11.5px;line-height:1;width:178px}
+#legend b{display:block;font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+#legend div{display:flex;align-items:center;gap:8px;margin:6px 0}
+#legend i{width:22px;height:12px;border-radius:3px;border:1.5px solid var(--ink);flex:none}
+#brandX{position:absolute;top:8px;right:10px;border:0;background:none;font:700 20px var(--sans);color:var(--muted);cursor:pointer;line-height:1}
+#brand.mini #story,#brand.mini .tags{display:none}#brand.mini h1{margin-bottom:0}
+@media(max-width:900px){#legend{display:none}}
+#foot{position:absolute;right:10px;bottom:2px;z-index:3;font-size:10px;color:var(--ink);opacity:.7}
+#loading{position:absolute;inset:0;z-index:9;background:var(--paper);display:grid;place-items:center;transition:opacity .5s;font:600 16px var(--serif)}
+#loading span{display:block;width:46px;height:46px;border-radius:50%;border:4px solid var(--ink);border-top-color:var(--red);margin:0 auto 14px;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#error{display:none;position:absolute;z-index:8;left:50%;top:50%;transform:translate(-50%,-50%);max-width:380px;padding:16px;font-size:13px;line-height:1.5;background:#fff1f1}
+
+.pin{width:20px;height:20px;border-radius:50%;background:var(--paper);border:5px solid var(--ink);box-shadow:0 0 0 6px rgba(27,31,59,.18)}
+.van{width:44px;height:44px;filter:drop-shadow(0 0 8px rgba(230,57,70,.9))}
+.maplibregl-popup-content{background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:9px 13px;font:13px var(--sans);box-shadow:3px 3px 0 var(--ink)}
+.maplibregl-popup-tip{display:none}
+.maplibregl-ctrl-group{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)!important;border-radius:10px!important}
+
+@media(max-width:900px){#chips{top:auto;bottom:156px;right:14px;max-width:calc(100% - 28px)}}
+@media(max-width:680px){
+ h1{font-size:25px}#brand{padding:12px 14px}#story{font-size:12.5px}
+ #dock{grid-template-columns:1fr;gap:10px;bottom:12px}
+ .meter{justify-content:space-between}#bigpct{font-size:34px}
+ #goFar{width:100%}
+ #chips{bottom:230px}#sticker{bottom:290px}
+}
+</style>
+</head>
+<body>
+<div id="loading"><div><span></span>Drawing the map of help...</div></div>
+<div id="map"></div>
+<div id="labels"></div>
+<div id="error" class="card"></div>
+
+<header id="brand" class="card">
+  <button id="brandX" aria-label="Collapse">&minus;</button>
+  <div class="kicker">AWS Builder &middot; Map It</div>
+  <h1>How far is <em>help</em>?</h1>
+  <div class="where" id="where"></div>
+  <p id="story">Loading...</p>
+  <div class="tags" id="tags"></div>
+</header>
+
+<button id="play">&#9654; Play the story</button>
+<div id="caption" class="card"></div>
+
+<aside id="locator" class="card"><div id="locmap"></div><span id="locname"></span></aside>
+
+<nav id="chips" aria-label="Map layers">
+  <button class="chip" id="cHosp" aria-pressed="true"><i style="background:var(--red)"></i>Hospitals <span id="nHosp"></span></button>
+  <button class="chip" id="cAmb" aria-pressed="true"><i style="background:var(--ink)"></i>Ambulance stations <span id="nAmb"></span></button>
+  <button class="chip" id="cZones" aria-pressed="true"><i style="background:var(--teal)"></i>Drive-time zones</button>
+  <button class="chip" id="cDesert" aria-pressed="true"><i style="background:repeating-linear-gradient(45deg,var(--red) 0 2px,#fff 2px 4px)"></i>Medical deserts</button>
+</nav>
+
+<section id="dock" class="card">
+  <div class="seg" id="seg" role="group" aria-label="Drive time">
+    <button data-m="10">10 min</button><button data-m="20">20 min</button><button data-m="30" class="on">30 min</button>
+  </div>
+  <div class="meter"><b id="bigpct">-</b><span id="bigtxt">of the mapped area<br>can reach a hospital</span></div>
+  <button id="goFar">Where is help farthest &rarr;</button>
+</section>
+
+<aside id="legend" class="card">
+  <b>Drive time to a hospital</b>
+  <div><i style="background:#2bb673"></i>under 10 min</div>
+  <div><i style="background:#ffd166"></i>10 to 20 min</div>
+  <div><i style="background:#ff8c5a"></i>20 to 30 min</div>
+  <div><i style="background:repeating-linear-gradient(45deg,#e63946 0 2px,#fff 2px 4px)"></i>over 30 min</div>
+</aside>
+
+<aside id="sticker" class="card">
+  <button class="x" id="stickerX" aria-label="Close">&times;</button>
+  <div id="stickerBody"></div>
+</aside>
+<div id="foot">&copy; OpenStreetMap contributors &middot; Amazon Location Service</div>
+
+<script>
+const C = window.APP_CONFIG || {};
+const styleUrl = `https://maps.geo.${C.REGION}.amazonaws.com/v2/styles/Standard/descriptor?key=${C.API_KEY}&color-scheme=Light`;
+const $ = (id) => document.getElementById(id);
+const showError = (m) => { const e = $("error"); e.style.display = "block"; e.textContent = m; };
+const BAND = { 10: "#2bb673", 20: "#ffd166", 30: "#ff8c5a" };
+
+const map = new maplibregl.Map({ container: "map", style: styleUrl, center: C.CENTER, zoom: (C.ZOOM || 10.4) - 1.2, attributionControl: false });
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+map.on("error", (e) => {
+  const m = String((e && e.error && e.error.message) || "");
+  if (/401|403|Forbidden|Unauthorized/i.test(m)) showError("The map was rejected. Check REGION and API_KEY in config.js (the key needs the Maps GetTile permission and its allowed referrers must include this site).");
+});
+
+// ---------- helpers ----------
+const km = (a, b) => {
+  const R = 6371, t = (d) => d * Math.PI / 180, dLa = t(b[1] - a[1]), dLo = t(b[0] - a[0]);
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(t(a[1])) * Math.cos(t(b[1])) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+const nearest = (here, feats) => {
+  let best = null, d = Infinity;
+  for (const f of feats) { const x = km(here, f.geometry.coordinates); if (x < d) { d = x; best = f; } }
+  return best ? { f: best, d } : null;
+};
+const isER = (f) => f.properties.er === true || f.properties.er === "true";
+const inRing = (p, r) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j];
+  if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c; } return c; };
+const inPoly = (p, rings) => inRing(p, rings[0]) && !rings.slice(1).some(h => inRing(p, h));
+const inGeom = (p, g) => g.type === "Polygon" ? inPoly(p, g.coordinates) : g.type === "MultiPolygon" ? g.coordinates.some(c => inPoly(p, c)) : false;
+const cellsToPolys = (cells, step) => {
+  const h = step / 2;
+  return { type: "FeatureCollection", features: cells.map(c => ({ type: "Feature", properties: {},
+    geometry: { type: "Polygon", coordinates: [[[c.lon-h,c.lat-h],[c.lon+h,c.lat-h],[c.lon+h,c.lat+h],[c.lon-h,c.lat+h],[c.lon-h,c.lat-h]]] } })) };
+};
+function tween(el, to, suffix = "%") {
+  const from = parseFloat(el.dataset.v || 0), t0 = performance.now();
+  (function s(t) { const k = Math.min(1, (t - t0) / 600); el.textContent = (from + (to - from) * k).toFixed(0) + suffix; if (k < 1) requestAnimationFrame(s); else el.dataset.v = to; })(t0);
+}
+function iconImage(kind) {
+  const s = 44, c = document.createElement("canvas"); c.width = c.height = s;
+  const x = c.getContext("2d");
+  x.beginPath(); x.arc(s/2, s/2, 19, 0, Math.PI * 2);
+  x.fillStyle = kind === "h" ? "#e63946" : "#1b1f3b"; x.fill();
+  x.lineWidth = 3.5; x.strokeStyle = "#fbf6ea"; x.stroke();
+  x.fillStyle = "#fbf6ea";
+  if (kind === "h") { x.fillRect(s/2 - 3.5, s/2 - 11, 7, 22); x.fillRect(s/2 - 11, s/2 - 3.5, 22, 7); }
+  else { x.font = "700 21px DM Sans, Arial, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("A", s/2, s/2 + 1); }
+  return x.getImageData(0, 0, s, s);
+}
+function hatchImage() {
+  const c = document.createElement("canvas"); c.width = c.height = 16;
+  const x = c.getContext("2d"); x.strokeStyle = "#e63946"; x.lineWidth = 2.2; x.beginPath();
+  x.moveTo(-2, 18); x.lineTo(18, -2); x.moveTo(-2, 10); x.lineTo(10, -2); x.moveTo(6, 18); x.lineTo(18, 6); x.stroke();
+  return x.getImageData(0, 0, 16, 16);
+}
+const VAN_SVG = `<svg class="van" viewBox="0 0 44 44"><rect x="3" y="12" width="29" height="19" rx="4" fill="#fff" stroke="#1b1f3b" stroke-width="2.5"/>
+<path d="M32 17h6l4 6v8H32z" fill="#fff" stroke="#1b1f3b" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="14" y="16" width="3.5" height="11" fill="#e63946"/><rect x="10.2" y="19.7" width="11" height="3.5" fill="#e63946"/>
+<circle cx="12" cy="33" r="4" fill="#1b1f3b"/><circle cx="35" cy="33" r="4" fill="#1b1f3b"/><rect x="18" y="7" width="8" height="4" rx="2" fill="#e63946"/></svg>`;
+
+map.on("load", async () => {
+  try {
+    const get = (f) => fetch(`${C.DATA_URL}/${f}`).then(r => { if (!r.ok) throw new Error(f + " " + r.status); return r.json(); });
+    const [hosp, amb, iso, cov, plc] = await Promise.all([get("hospitals.geojson"), get("ambulance.geojson"), get("isolines.geojson"), get("coverage.json"), get("places.geojson").catch(() => ({ features: [] }))]);
+    const reachFc = await get("reach.geojson").catch(() => iso);
+    const bandsFc = await get("bands.geojson").catch(() => iso);
+    const H = hosp.features, A = amb.features, HER = H.filter(isER), P = plc.features;
+    const pct = { 10: cov.area_within_10_min_pct, 20: cov.area_within_20_min_pct, 30: cov.area_within_30_min_pct };
+
+    const country = C.COUNTRY ?? "Pakistan";
+    const cityFull = country ? `${cov.city}, ${country}` : cov.city;
+    const cityNote = C.CITY_NOTE ?? "Pakistan's largest city, home to more than 20 million people";
+    $("where").innerHTML = `<b>${cityFull}</b>` + (cityNote ? `<span>${cityNote}</span>` : "");
+    $("locname").textContent = cityFull;
+
+    // ---------- header text ----------
+    $("nHosp").textContent = cov.hospitals; $("nAmb").textContent = cov.ambulance_stations;
+    const tags = [];
+    if (cov.demo) tags.push('<span class="tag demo">DEMO DATA</span>');
+    tags.push(cov.method === "estimated-radius" ? '<span class="tag warn">Estimated zones</span>' : '<span class="tag">Real road drive-time</span>');
+    tags.push(`<span class="tag">${cityFull}</span>`);
+    $("tags").innerHTML = tags.join("");
+
+    let band = 30;
+    const setBand = (m) => {
+      band = m;
+      document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("on", +b.dataset.m === m));
+      tween($("bigpct"), pct[m]);
+      $("bigtxt").innerHTML = `of ${cov.city} can reach<br>a hospital in ${m} min`;
+      $("story").innerHTML = `<b>${pct[m]}%</b> of the populated area of ${cityFull} is within a ${m} minute drive of a hospital. ` +
+        `<b>${cov.desert_pct}%</b> is a medical desert, with none inside 30 minutes.`;
+      if (map.getLayer("iso-fill")) {
+        const f = ["<=", ["get", "minutes"], m];
+        map.setFilter("iso-fill", f); map.setFilter("iso-line", f);
+      }
+    };
+
+    // ---------- images ----------
+    map.addImage("hosp", iconImage("h"), { pixelRatio: 2 });
+    map.addImage("amb", iconImage("a"), { pixelRatio: 2 });
+    map.addImage("hatch", hatchImage(), { pixelRatio: 2 });
+
+    // ---------- sources + layers ----------
+    const firstSymbol = (map.getStyle().layers.find(l => l.type === "symbol") || {}).id;
+    const bandColor = ["match", ["get", "minutes"], 10, BAND[10], 20, BAND[20], 30, BAND[30], "#999"];
+    map.addSource("wash", { type: "geojson", data: { type: "Feature", geometry: { type: "Polygon", coordinates: [[[-179, -80], [179, -80], [179, 80], [-179, 80], [-179, -80]]] } } });
+    map.addLayer({ id: "wash", type: "fill", source: "wash", paint: { "fill-color": "#fbf6ea", "fill-opacity": 0.42 } }, firstSymbol);
+    map.addSource("iso", { type: "geojson", data: bandsFc });
+    map.addLayer({ id: "iso-fill", type: "fill", source: "iso", paint: { "fill-color": bandColor, "fill-opacity": 0.62 } }, firstSymbol);
+    map.addLayer({ id: "iso-line", type: "line", source: "iso", paint: { "line-color": "#ffffff", "line-width": 1.3, "line-opacity": 0.95 } }, firstSymbol);
+
+    map.addSource("desert", { type: "geojson", data: cellsToPolys(cov.desert_cells, cov.grid_step) });
+    map.addLayer({ id: "desert-fill", type: "fill", source: "desert", paint: { "fill-pattern": "hatch", "fill-opacity": 0.8 } }, firstSymbol);
+
+    map.addSource("link", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: "link-line", type: "line", source: "link", paint: { "line-color": "#1b1f3b", "line-width": 2.5, "line-dasharray": [1.5, 1.5] } });
+
+    map.addSource("amb", { type: "geojson", data: amb });
+    const zs = (a, b, c) => ["interpolate", ["linear"], ["zoom"], 9, a, 11, b, 13, c];
+    map.addLayer({ id: "amb", type: "symbol", source: "amb", layout: { "icon-image": "amb", "icon-size": zs(0.38, 0.6, 0.85), "icon-allow-overlap": true } });
+    map.addSource("hosp", { type: "geojson", data: hosp });
+    map.addLayer({ id: "hosp", type: "symbol", source: "hosp", filter: ["!=", ["get", "er"], true],
+      layout: { "icon-image": "hosp", "icon-allow-overlap": true, "icon-size": zs(0.4, 0.62, 0.9) } });
+    map.addLayer({ id: "hosp-er", type: "symbol", source: "hosp", filter: ["==", ["get", "er"], true],
+      layout: { "icon-image": "hosp", "icon-allow-overlap": true, "icon-size": zs(0.58, 0.88, 1.2) } });
+
+    // ---------- controls ----------
+    document.querySelectorAll("#seg button").forEach(b => b.onclick = () => setBand(+b.dataset.m));
+    const chip = (id, layers) => { const el = $(id); el.onclick = () => {
+      const on = el.getAttribute("aria-pressed") !== "true"; el.setAttribute("aria-pressed", on);
+      layers.forEach(l => map.setLayoutProperty(l, "visibility", on ? "visible" : "none")); }; };
+    chip("cHosp", ["hosp", "hosp-er"]); chip("cAmb", ["amb"]); chip("cZones", ["iso-fill", "iso-line"]); chip("cDesert", ["desert-fill"]);
+    setBand(30);
+
+    // ---------- popups ----------
+    const popup = (e, label) => {
+      const p = e.features[0].properties;
+      new maplibregl.Popup({ offset: 14 }).setLngLat(e.features[0].geometry.coordinates)
+        .setHTML(`<b>${p.name}</b><br><span style="color:#6b6f8a">${label}${p.er === true || p.er === "true" ? " &middot; ER tagged" : ""}</span>`).addTo(map);
+    };
+    map.on("click", "hosp", (e) => popup(e, "Hospital"));
+    map.on("click", "hosp-er", (e) => popup(e, "Hospital"));
+    map.on("click", "amb", (e) => popup(e, "Ambulance station"));
+    ["hosp", "hosp-er", "amb"].forEach(l => { map.on("mouseenter", l, () => map.getCanvas().style.cursor = "pointer"); map.on("mouseleave", l, () => map.getCanvas().style.cursor = ""); });
+
+    // ---------- click anywhere + simulated dispatch ----------
+    let pin = null, van = null, raf = 0;
+    const clearCheck = () => { cancelAnimationFrame(raf); if (pin) pin.remove(); if (van) van.remove(); pin = van = null;
+      map.getSource("link").setData({ type: "FeatureCollection", features: [] }); $("sticker").style.display = "none"; };
+    $("stickerX").onclick = clearCheck;
+
+    map.on("click", (e) => {
+      if (map.queryRenderedFeatures(e.point, { layers: ["hosp", "hosp-er", "amb"] }).length) return;
+      clearCheck();
+      const here = [e.lngLat.lng, e.lngLat.lat];
+      const mins = reachFc.features.filter(f => inGeom(here, f.geometry)).map(f => f.properties.minutes);
+      const hit = mins.length ? Math.min(...mins) : null;
+      const nh = nearest(here, H), na = nearest(here, A), ne = nearest(here, HER);
+      const origin = na || nh;
+      const np = nearest(here, P);
+
+      const head = hit === null
+        ? `<div class="v" style="color:#e63946">Medical desert</div>No hospital within a 30 minute drive of this spot.`
+        : `<div class="v">Hospital within ${hit} min</div>${cov.method === "estimated-radius" ? "Estimated from distance." : "By road (within about 1 km of it), ignoring live traffic."}`;
+      const row = (col, t, r) => r ? `<div class="row"><i style="background:${col}"></i><div>${t}: <b>${r.f.properties.name}</b><br><span style="color:#6b6f8a">${r.d.toFixed(1)} km away</span></div></div>` : "";
+      $("stickerBody").innerHTML = (np ? `<div class="loc">Near ${np.f.properties.name}</div>` : "") + head + row("#e63946", "Nearest hospital", nh) + row("#e63946", "Nearest ER-tagged", ne) + row("#1b1f3b", "Nearest ambulance station", na) +
+        `<div class="sim" id="sim">Simulated dispatch from ${origin.f.properties.name} (straight line, for illustration)</div>`;
+      $("sticker").style.display = "block";
+
+      const pe = document.createElement("div"); pe.className = "pin";
+      pin = new maplibregl.Marker({ element: pe }).setLngLat(here).addTo(map);
+      map.getSource("link").setData({ type: "FeatureCollection", features: [{ type: "Feature", properties: {},
+        geometry: { type: "LineString", coordinates: [origin.f.geometry.coordinates, here] } }] });
+
+      const ve = document.createElement("div"); ve.innerHTML = VAN_SVG;
+      van = new maplibregl.Marker({ element: ve }).setLngLat(origin.f.geometry.coordinates).addTo(map);
+      const a = origin.f.geometry.coordinates, t0 = performance.now(), dur = 3200;
+      (function step(t) {
+        const k = Math.min(1, (t - t0) / dur), ease = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        van.setLngLat([a[0] + (here[0] - a[0]) * ease, a[1] + (here[1] - a[1]) * ease]);
+        if (k < 1) raf = requestAnimationFrame(step);
+        else { const s = $("sim"); if (s) s.textContent = hit === null ? "Arrived, but this spot is outside the 30 minute zone." : `Arrived. Estimated real drive: under ${hit} min.`; }
+      })(t0);
+    });
+
+    // ---------- most isolated spot ----------
+    $("goFar").onclick = () => {
+      clearCheck();
+      const m = cov.most_isolated, npf = nearest([m.lon, m.lat], P);
+      map.flyTo({ center: [m.lon, m.lat], zoom: 11.6, duration: 2400 });
+      new maplibregl.Popup({ offset: 12 }).setLngLat([m.lon, m.lat])
+        .setHTML(`<b>Help is farthest here</b>${npf ? ` (near ${npf.f.properties.name})` : ""}<br><span style="color:#6b6f8a">${m.km} km from the nearest hospital</span>`).addTo(map);
+    };
+
+    // ---------- area name labels (DOM, collision-avoiding) ----------
+    const rank = { city: 0, town: 0, suburb: 1, city_district: 1 };
+    const labels = P.map(f => {
+      const t = rank[f.properties.place] ?? 2, el = document.createElement("div");
+      el.className = "lbl t" + t; el.textContent = f.properties.name; $("labels").appendChild(el);
+      return { el, t, ll: f.geometry.coordinates, w: f.properties.name.length * (t === 0 ? 10 : 6.6) + 12, minZoom: [0, 10.2, 11.7][t] };
+    }).sort((a, b) => a.t - b.t || a.w - b.w);
+    const obstacles = H.concat(A).map(f => f.geometry.coordinates);
+    let queued = false;
+    const layout = () => {
+      queued = false;
+      const W = innerWidth, Hh = innerHeight, z = map.getZoom(), taken = [];
+      for (const c of obstacles) { const p = map.project(c); taken.push({ x: p.x - 14, y: p.y - 14, w: 28, h: 28 }); }
+      for (const l of labels) {
+        const p = map.project(l.ll), r = { x: p.x - l.w / 2, y: p.y - 9, w: l.w, h: 18 };
+        const ok = z >= l.minZoom && p.x > -40 && p.x < W + 40 && p.y > -20 && p.y < Hh + 20 &&
+          !taken.some(q => r.x < q.x + q.w && r.x + r.w > q.x && r.y < q.y + q.h && r.y + r.h > q.y);
+        l.el.style.display = ok ? "block" : "none";
+        if (ok) { taken.push(r); l.el.style.transform = `translate(${r.x}px,${r.y}px)`; }
+      }
+    };
+    const queue = () => { if (!queued) { queued = true; requestAnimationFrame(layout); } };
+    map.on("move", queue); map.on("zoom", queue); map.on("resize", queue); layout();
+
+    // ---------- intro ----------
+    const b = cov.bbox;
+    const fit = (d) => map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: { top: 190, bottom: 170, left: 60, right: 60 }, maxZoom: 11.2, duration: d });
+    fit(2200);
+
+    // world locator: where is this city?
+    try {
+      const mini = new maplibregl.Map({ container: "locmap", style: styleUrl, center: C.CENTER, zoom: 3.1, interactive: false, attributionControl: false });
+      const dp = document.createElement("div"); dp.className = "dotpin";
+      new maplibregl.Marker({ element: dp }).setLngLat(C.CENTER).addTo(mini);
+    } catch (e) { $("locator").style.display = "none"; }
+
+    // guided story (great for the demo video)
+    let timers = [], touring = false;
+    const say = (t) => { const c = $("caption"); c.textContent = t; c.style.display = "block"; };
+    const stopTour = () => { timers.forEach(clearTimeout); timers = []; touring = false; $("caption").style.display = "none"; $("play").innerHTML = "&#9654; Play the story"; };
+    $("play").onclick = () => {
+      if (touring) { stopTour(); return; }
+      touring = true; $("play").innerHTML = "&#9632; Stop"; clearCheck();
+      const m = cov.most_isolated;
+      [
+        [0,     () => { fit(1800); setBand(10); say(`Within 10 minutes by road, only ${pct[10]}% of ${cov.city} can reach a hospital.`); }],
+        [5000,  () => { setBand(20); say(`${pct[20]}% can reach one within 20 minutes.`); }],
+        [9500,  () => { setBand(30); say(`${pct[30]}% within 30 minutes. The remaining ${cov.desert_pct}% is a medical desert.`); }],
+        [14500, () => { $("goFar").onclick(); say(`Help is farthest here: ${m.km} km from the nearest hospital.`); }],
+        [20500, () => { document.querySelectorAll(".maplibregl-popup").forEach(p => p.remove()); fit(2000); say("Click anywhere on the map to send a simulated ambulance and check your own distance to help."); }],
+        [27000, stopTour]
+      ].forEach(([t, fn]) => timers.push(setTimeout(fn, t)));
+    };
+    $("brandX").onclick = () => { const m = $("brand").classList.toggle("mini"); $("brandX").innerHTML = m ? "+" : "&minus;"; };
+    $("loading").style.opacity = 0; setTimeout(() => $("loading").remove(), 500);
+  } catch (err) {
+    $("loading") && $("loading").remove();
+    showError("Could not load the data files. Run scripts/build_data.py first and check DATA_URL in config.js. (" + err.message + ")");
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+[
+ {
+  "name": "Saddar",
+  "lat": 24.8607,
+  "lon": 67.0099,
+  "place": "suburb"
+ },
+ {
+  "name": "Clifton",
+  "lat": 24.8138,
+  "lon": 67.03,
+  "place": "suburb"
+ },
+ {
+  "name": "DHA",
+  "lat": 24.81,
+  "lon": 67.065,
+  "place": "suburb"
+ },
+ {
+  "name": "Korangi",
+  "lat": 24.835,
+  "lon": 67.125,
+  "place": "suburb"
+ },
+ {
+  "name": "Landhi",
+  "lat": 24.85,
+  "lon": 67.21,
+  "place": "suburb"
+ },
+ {
+  "name": "Malir",
+  "lat": 24.893,
+  "lon": 67.195,
+  "place": "suburb"
+ },
+ {
+  "name": "Gulshan-e-Iqbal",
+  "lat": 24.92,
+  "lon": 67.092,
+  "place": "suburb"
+ },
+ {
+  "name": "Gulistan-e-Jauhar",
+  "lat": 24.91,
+  "lon": 67.13,
+  "place": "suburb"
+ },
+ {
+  "name": "North Nazimabad",
+  "lat": 24.94,
+  "lon": 67.04,
+  "place": "suburb"
+ },
+ {
+  "name": "Nazimabad",
+  "lat": 24.91,
+  "lon": 67.03,
+  "place": "suburb"
+ },
+ {
+  "name": "Orangi Town",
+  "lat": 24.95,
+  "lon": 66.99,
+  "place": "suburb"
+ },
+ {
+  "name": "SITE",
+  "lat": 24.9,
+  "lon": 66.98,
+  "place": "suburb"
+ },
+ {
+  "name": "Lyari",
+  "lat": 24.86,
+  "lon": 66.99,
+  "place": "suburb"
+ },
+ {
+  "name": "Keamari",
+  "lat": 24.83,
+  "lon": 66.98,
+  "place": "suburb"
+ },
+ {
+  "name": "Liaquatabad",
+  "lat": 24.91,
+  "lon": 67.045,
+  "place": "suburb"
+ },
+ {
+  "name": "PECHS",
+  "lat": 24.87,
+  "lon": 67.06,
+  "place": "suburb"
+ },
+ {
+  "name": "Federal B Area",
+  "lat": 24.93,
+  "lon": 67.08,
+  "place": "suburb"
+ },
+ {
+  "name": "Surjani Town",
+  "lat": 25.03,
+  "lon": 67.04,
+  "place": "suburb"
+ },
+ {
+  "name": "Scheme 33",
+  "lat": 24.97,
+  "lon": 67.13,
+  "place": "suburb"
+ },
+ {
+  "name": "North Karachi",
+  "lat": 24.98,
+  "lon": 67.06,
+  "place": "suburb"
+ },
+ {
+  "name": "Shah Faisal Colony",
+  "lat": 24.87,
+  "lon": 67.15,
+  "place": "suburb"
+ },
+ {
+  "name": "Airport",
+  "lat": 24.9065,
+  "lon": 67.1608,
+  "place": "suburb"
+ },
+ {
+  "name": "Baldia Town",
+  "lat": 24.91,
+  "lon": 66.97,
+  "place": "suburb"
+ },
+ {
+  "name": "Bahadurabad",
+  "lat": 24.88,
+  "lon": 67.07,
+  "place": "suburb"
+ },
+ {
+  "name": "Manora",
+  "lat": 24.8,
+  "lon": 66.97,
+  "place": "suburb"
+ }
+]
